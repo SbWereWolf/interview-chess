@@ -1,9 +1,14 @@
 <?php
 
-class Board {
+class Board
+{
     private $figures = [];
+    private $placement = [];
 
-    public function __construct() {
+    private $isBlack = false;
+
+    public function __construct()
+    {
         $this->figures['a'][1] = new Rook(false);
         $this->figures['b'][1] = new Knight(false);
         $this->figures['c'][1] = new Bishop(false);
@@ -30,31 +35,59 @@ class Board {
         $this->figures['f'][7] = new Pawn(true);
         $this->figures['g'][7] = new Pawn(true);
         $this->figures['h'][7] = new Pawn(true);
-
-        $this->figures['a'][8] = new Rook(true);
-        $this->figures['b'][8] = new Knight(true);
-        $this->figures['c'][8] = new Bishop(true);
-        $this->figures['d'][8] = new Queen(true);
-        $this->figures['e'][8] = new King(true);
-        $this->figures['f'][8] = new Bishop(true);
-        $this->figures['g'][8] = new Knight(true);
-        $this->figures['h'][8] = new Rook(true);
     }
 
-    public function move($move) {
+    public function move($move)
+    {
         if (!preg_match('/^([a-h])(\d)-([a-h])(\d)$/', $move, $match)) {
             throw new \Exception("Incorrect move");
         }
 
         $xFrom = $match[1];
         $yFrom = $match[2];
-        $xTo   = $match[3];
-        $yTo   = $match[4];
+        $xTo = $match[3];
+        $yTo = $match[4];
 
+        $canMove = false;
+        /* @var Figure $fishka */
+        $fishka = new Pawn(false);
         if (isset($this->figures[$xFrom][$yFrom])) {
-            $this->figures[$xTo][$yTo] = $this->figures[$xFrom][$yFrom];
+            $canMove = true;
+            $fishka = $this->figures[$xFrom][$yFrom];
         }
-        unset($this->figures[$xFrom][$yFrom]);
+        $wasTurn = $canMove
+            && $fishka->getIsBlack() === $this->isBlack;
+
+        if (!$wasTurn) {
+            throw new \Exception('Нарушена очерёдность ходов');
+        }
+
+        $isPawn = $fishka instanceof Pawn;
+        if (!$isPawn) {
+            throw new \Exception('Выбранная фигура не пешка');
+        }
+        $delta = 1;
+        if ($fishka->getIsBlack()) {
+            $delta = -1;
+        }
+        $hasBarrier = isset($this->figures[$xFrom][$yFrom + $delta]);
+        if ($hasBarrier) {
+            throw new \Exception('Движение через другие фигуры запрещено');
+        }
+
+        $isMove = !isset($this->figures[$xTo][$yTo]);
+        if($isMove){
+            $fishka->move($xFrom, $yFrom, $xTo, $yTo);
+        }
+        if(!$isMove){
+            $fishka->kill($xFrom, $yFrom, $xTo, $yTo);
+        }
+
+        if ($wasTurn) {
+            $this->figures[$xTo][$yTo] = $this->figures[$xFrom][$yFrom];
+            unset($this->figures[$xFrom][$yFrom]);
+            $this->isBlack = !$this->isBlack;
+        }
     }
 
     public function dump() {
